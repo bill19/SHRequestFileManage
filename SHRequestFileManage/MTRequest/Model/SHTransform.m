@@ -10,15 +10,6 @@
 #import "SHParmsModel.h"
 @implementation SHTransform
 
-
-+ (NSArray *)shTransformWithString:(NSString *)string {
-    //去除空格
-    NSString *strUrl = [string stringByReplacingOccurrencesOfString:@" " withString:@""];
-    NSString *str = [strUrl stringByReplacingOccurrencesOfString:@"\t" withString:@""];
-    //用分号隔开
-    return [str componentsSeparatedByString:@";"];
-}
-
 /**
  按照固定好的excel生成需要的字符串-从而生成需要的model
 
@@ -26,18 +17,10 @@
  @return 给一个模型数组啊
  */
 + (NSArray <SHParmsModel *>*)shTransFromFullSting:(NSString *)fullString {
-
-    NSString *strUrl = [fullString stringByReplacingOccurrencesOfString:@" " withString:@""];
-    //去除空格和换行符
-    NSString *strUrl2 = [strUrl stringByReplacingOccurrencesOfString:@"\t" withString:@""];
-
-    NSString *strUrl3 = [strUrl2 stringByReplacingOccurrencesOfString:@"\n" withString:@""];
-    //用分号隔开
-    NSArray *array1 =  [strUrl3 componentsSeparatedByString:@";"];
-    
+    NSArray *fullArray = [fullString componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
     NSMutableArray *models = [NSMutableArray array];
-    for (int i = 0; i < array1.count; i++) {
-        NSArray *array2 = [array1[i] componentsSeparatedByString:@"~"];
+    for (int i = 0; i < fullArray.count; i++) {
+        NSArray *array2 = [fullArray[i] componentsSeparatedByString:@"\t"];
         SHParmsModel *model = [[SHParmsModel alloc] init];
         model.netUrl = [array2 objectAtIndex:0];
         model.netParameterName = [array2 objectAtIndex:1];

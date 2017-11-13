@@ -15,7 +15,7 @@
 
 #define k_block_judgeHeader @"+ (void)judgeReturnValueResponseObject:(id)responseObject  Success:(void(^)())success fauile:(void(^)())fauile;\n"
 
-#define k_function_header(abString,funcName,parms,footer,sign) [NSString stringWithFormat:@"+ (void)request%@%@%@%@%@",abString,funcName,parms,footer,sign]
+#define k_function_header(abString,funcName,parms,footer,sign) [NSString stringWithFormat:@"+ (void)request%@%@%@%@%@\n",abString,funcName,parms,footer,sign]
 #define k_function_footer @"Success:(SuccessBlock)successBlock failure:(FailureBlock)failure netError:(ErrorBlock)errorBlock"
 
 #define k_function_requestBody(requestType,url) [NSString stringWithFormat:@"[MTHttpRequest_Helper %@RequestWithURL:%@ parameters:params success:^(id responseObject) {\n[self judgeReturnValueResponseObject:responseObject Success:^{\nif (successBlock) {\nsuccessBlock(responseObject);\n}\n} fauile:^{\nif (failure) {\nfailure(responseObject);\n}\n}];\n} failure:^(NSError *error, NSString *errorStr) {\nif (errorBlock) {\nerrorBlock(error);\n}\n}];",requestType,url]

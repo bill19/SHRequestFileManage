@@ -81,11 +81,20 @@
 
 
 - (void)setupHeaserView {
-
     SHNetHeaderView *headerView = [[SHNetHeaderView alloc] init];
     headerView.frame = CGRectMake(500, KVIEWHALFHEIGHT, 800, 500);
     _headerView = headerView;
     [self.view addSubview:headerView];
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *className = [defaults objectForKey:@"className"];
+    NSString *projectName = [defaults objectForKey:@"projectName"];
+    NSString *developerName = [defaults objectForKey:@"developerName"];
+    NSString *abString = [defaults objectForKey:@"abString"];
+    _headerView.classNameLabel.contentLab.stringValue = className;
+    _headerView.progectLabel.contentLab.stringValue = projectName;
+    _headerView.authoLabel.contentLab.stringValue = developerName;
+    _headerView.abLabel.contentLab.stringValue = abString;
 }
 
 - (void)setupParmsTableView {
@@ -196,6 +205,11 @@
     fileM.projectName = [self.headerView.progectLabel.contentLab stringValue];
     fileM.developerName = [self.headerView.authoLabel.contentLab stringValue];
     fileM.abString = [self.headerView.abLabel.contentLab stringValue];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:fileM.className forKey:@"className"];
+    [defaults setObject:fileM.projectName forKey:@"projectName"];
+    [defaults setObject:fileM.developerName forKey:@"developerName"];
+    [defaults setObject:fileM.abString forKey:@"abString"];
     if (fileM.className.length == 0) {
         [self showAlertText:@"className = 类名不能为空"];
         return;

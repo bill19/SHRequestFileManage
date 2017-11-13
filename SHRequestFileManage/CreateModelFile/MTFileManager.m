@@ -76,10 +76,29 @@
     [sourceString appendString:k_block_judgeHeader];
 
     NSDictionary *dict = [SHTransform mergeParms:modelArray urls:self.urls];
-    for (NSString *url in self.urls) {
+    [sourceString appendString:[self sourceStringFromUrls:self.urls dict:dict isNeedRequestType:NO]];
+    NSString *str1 = [NSString stringWithFormat:@"%@Request",_className];
+    [self.headerString appendFormat:k_CLASS,str1,sourceString];
+
+    [self creatRequestFileSourceWithArray:modelArray];
+    return  [self generateFileAllowForHeader:@"Request" needSource:YES];
+}
+
+/**
+ 通过存储的字典和url集合 返回对应的参数备注集合和头部信息
+
+ @param urls <#urls description#>
+ @param dict <#dict description#>
+ @return <#return value description#>
+ */
+- (NSString *)sourceStringFromUrls:(NSArray *)urls dict:(NSDictionary *)dict isNeedRequestType:(BOOL)needRequestType{
+    NSMutableString *sourceStr = [NSMutableString string];//要返回的字符串
+    for (NSString *url in urls) {
         /**插入方法信息*/
-        NSMutableString *tempSourceString = [NSMutableString string];
-        NSMutableString *parmsString = [NSMutableString string];
+        NSMutableString *tempSourceString = [NSMutableString string];//注释信息
+        NSMutableString *parmsString = [NSMutableString string];//参数数组拼接字符串
+        NSMutableString *parmInPutString = [NSMutableString string];//内部的参数字典拼接
+        NSString *requestStr = [NSString string];//获取请求方式 post or get
         NSArray *models = dict[url];
         for (int i = 0; i < models.count; i++) {
             SHParmsModel *parmModel = [models objectAtIndex:i];
@@ -88,16 +107,28 @@
             [parmsString appendString:[SHTransform parmType:parmModel.netTypeName]];
             [parmsString appendString:parmModel.netParameterName];
             [parmsString appendString:@" "];
+            requestStr = parmModel.netRequest;
+            NSMutableString *tempNetType =[NSMutableString string];
+            if ([parmModel.netTypeName isEqualToString:@"NSString"]) {
+                [tempNetType appendString:parmModel.netParameterName];
+            }else{
+                [tempNetType appendString:[SHTransform addParentheses:parmModel.netParameterName]];
+            }
+            [parmInPutString appendFormat:@"[self addParmWith:params mtobject:%@ mtkey:@\"%@\"];\n",tempNetType,parmModel.netParameterName];
         }
+        NSString *url_Str = [NSString stringWithFormat:@"URL_%@_%@ ",[self.abString uppercaseStringWithLocale:[NSLocale currentLocale]],[[[url componentsSeparatedByString:@"/"] lastObject] uppercaseStringWithLocale:[NSLocale currentLocale]]];//获取URL 例如 URL_XX_XX字符串
         [tempSourceString appendString:[SHTransform addMarkModels:models]];
-        [tempSourceString appendString:k_function_header([_abString uppercaseString],[[url componentsSeparatedByString:@"/"] lastObject],parmsString,k_function_footer,@";\n")];
-        [sourceString appendString:tempSourceString];
-    }
-    NSString *str1 = [NSString stringWithFormat:@"%@Request",_className];
-    [self.headerString appendFormat:k_CLASS,str1,sourceString];
+        [tempSourceString appendString:k_function_header([_abString uppercaseString],[[url componentsSeparatedByString:@"/"] lastObject],parmsString,k_function_footer,needRequestType?@"\n":@";\n")];
+        [sourceStr appendString:tempSourceString];
 
-    [self creatRequestFileSourceWithArray:modelArray];
-    return  [self generateFileAllowForHeader:@"Request" needSource:YES];
+        if (needRequestType == YES) {//内部写入参数信息 拼接接收到的参数字典
+            [parmInPutString insertString:@"NSMutableDictionary *params = [NSMutableDictionary dictionary];\n" atIndex:0];
+            [parmInPutString appendString:k_function_requestBody(requestStr,url_Str)];
+            NSString *barcketsString = [SHTransform addBrackets:parmInPutString];
+            [sourceStr appendString:barcketsString];
+        }
+    }
+    return sourceStr;
 }
 
 - (BOOL)creatRequestFileSourceWithArray:(NSArray <SHParmsModel *>*)modelArray {
@@ -107,45 +138,7 @@
     NSMutableString *sourceString = [NSMutableString string];
     /**创建唯一调用方法*/
     NSDictionary *dict = [SHTransform mergeParms:modelArray urls:self.urls];
-    for (NSString *url in self.urls) {
-        /**插入方法信息*/
-        NSMutableString *tempSourceString = [NSMutableString string];
-        NSArray *models = dict[url];
-        [tempSourceString appendString: [SHTransform addMarkModels:models]];
-
-        NSMutableString *tempUrl = [NSMutableString string];
-        NSString *temStruUrl = [[url componentsSeparatedByString:@"/"] lastObject];
-        [tempUrl appendFormat:@"URL_%@_%@ ",[self.abString uppercaseStringWithLocale:[NSLocale currentLocale]],[temStruUrl uppercaseStringWithLocale:[NSLocale currentLocale]]];
-        NSMutableString *inputSourceString = [NSMutableString string];
-        NSString *requestType = [NSString string];
-        [inputSourceString appendString:@"NSMutableDictionary *params = [NSMutableDictionary dictionary];\n"];
-        for (int i = 0; i < models.count; i++) {
-            //参数对接.h文件
-            SHParmsModel *parmModel = [models objectAtIndex:i];
-            [tempSourceString appendString:parmModel.netParameterName];
-            [tempSourceString appendString:@":"];
-            [tempSourceString appendString:[SHTransform parmType:parmModel.netTypeName]];
-            [tempSourceString appendString:parmModel.netParameterName];
-            [tempSourceString appendString:@" "];
-            //参数新增到内部
-            NSMutableString *tempType =[NSMutableString string];
-            if ([parmModel.netTypeName isEqualToString:@"NSString"]) {
-                [tempType appendString:parmModel.netParameterName];
-            }else{
-                [tempType appendString:[SHTransform addParentheses:parmModel.netParameterName]];
-            }
-            [inputSourceString appendFormat:@"[self addParmWith:params mtobject:%@ mtkey:@\"%@\"];\n",tempType,parmModel.netParameterName];
-            requestType = parmModel.netRequest;
-        }
-        [tempSourceString appendString:k_function_footer];
-        [inputSourceString appendString:@"[self addParametersForDict:params];\n"];
-        [inputSourceString appendString:k_function_requestBody([requestType uppercaseString], tempUrl)];
-        inputSourceString = [SHTransform addBrackets:inputSourceString];
-        [tempSourceString appendString:inputSourceString];
-        [tempSourceString appendString:@"\n\n"];
-        [sourceString appendString:tempSourceString];
-        [sourceString appendString:@"\n"];
-    }
+    [sourceString appendString:[self sourceStringFromUrls:self.urls dict:dict isNeedRequestType:YES]];
     [sourceString appendString:k_function_addParm];
     [sourceString appendString:k_function_addParmWithDict];
     NSString *str1 = [NSString stringWithFormat:@"%@Request",_className];
