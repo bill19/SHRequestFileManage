@@ -52,7 +52,7 @@
 
 - (void)setupChildNodeView {
     SHChildNodeView *childNodeView = [[SHChildNodeView alloc] init];
-    childNodeView.frame = CGRectMake(30, KVIEWHALFHEIGHT, 300, 300);
+    childNodeView.frame = CGRectMake(30, 20, 300, 300);
     childNodeView.delegate = self;
     _childNodeView = childNodeView;
     [self.view addSubview:_childNodeView];
@@ -82,7 +82,7 @@
 
 - (void)setupHeaserView {
     SHNetHeaderView *headerView = [[SHNetHeaderView alloc] init];
-    headerView.frame = CGRectMake(500, KVIEWHALFHEIGHT, 800, 500);
+    headerView.frame = CGRectMake(500, 20, 800, 500);
     _headerView = headerView;
     [self.view addSubview:headerView];
 
@@ -91,10 +91,11 @@
     NSString *projectName = [defaults objectForKey:@"projectName"];
     NSString *developerName = [defaults objectForKey:@"developerName"];
     NSString *abString = [defaults objectForKey:@"abString"];
-    _headerView.classNameLabel.contentLab.stringValue = className;
-    _headerView.progectLabel.contentLab.stringValue = projectName;
-    _headerView.authoLabel.contentLab.stringValue = developerName;
-    _headerView.abLabel.contentLab.stringValue = abString;
+
+    _headerView.classNameLabel.contentLab.stringValue = [self stringFromStr:className];
+    _headerView.progectLabel.contentLab.stringValue = [self stringFromStr:projectName];
+    _headerView.authoLabel.contentLab.stringValue = [self stringFromStr:developerName];
+    _headerView.abLabel.contentLab.stringValue = [self stringFromStr:abString];
 }
 
 - (void)setupParmsTableView {
@@ -227,16 +228,10 @@
         return;
     }
     [fileM createModelWithUrlurlString:self.childNodeView.childNodeLab.stringValue];
-    [self openFloder];
+
+    [MTFileManager openFloder];
 }
 
-- (void)openFloder
-{
-    //    NSString *dateStr = [NSDate stringWithFormat:@"yyyy-MM-dd"];
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES);
-    //    NSString *dirPath = [paths[0] stringByAppendingPathComponent:dateStr];
-    [[NSWorkspace sharedWorkspace]selectFile:nil inFileViewerRootedAtPath:paths[0]];
-}
 
 - (void)clearBtnAcion {
     [self.dataSource removeAllObjects];
@@ -268,6 +263,15 @@
     }
     return _parmsSource;
 
+}
+
+- (NSString *)stringFromStr:(NSString *)str {
+
+    if (str.length>0) {
+        return str;
+    }else{
+        return @"temp";
+    }
 }
 
 @end

@@ -20,11 +20,11 @@
 @property (nonatomic, strong) NSString *projectName;
 //开发者姓名
 @property (nonatomic, strong) NSString *developerName;
-//头文件内容
-@property (nonatomic, strong) NSMutableString *headerString;
-//源文件内容
-@property (nonatomic, strong) NSMutableString *sourceString;
 
+/**
+ 打开文件
+ */
++ (void)openFloder;
 
 - (BOOL)createModelWithUrlurlArray:(NSArray *)urlArray;
 

@@ -8,8 +8,8 @@
 
 #import "SHTransform.h"
 #import "SHParmsModel.h"
+#import "NSString+change.h"
 @implementation SHTransform
-
 /**
  按照固定好的excel生成需要的字符串-从而生成需要的model
 
@@ -23,10 +23,12 @@
         NSArray *array2 = [fullArray[i] componentsSeparatedByString:@"\t"];
         SHParmsModel *model = [[SHParmsModel alloc] init];
         model.netUrl = [array2 objectAtIndex:0];
-        model.netParameterName = [array2 objectAtIndex:1];
+        NSString *strNoteName = [[array2 objectAtIndex:1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        model.netParameterName = strNoteName;
         model.netNoteName = [array2 objectAtIndex:2];
-        model.netTypeName = [array2 objectAtIndex:3];
+        model.netTypeName = [self netTypeNameFrom:[array2 objectAtIndex:3]];
         model.netRequest = [array2 objectAtIndex:4];
+        model.requestHeaderNoteName = [array2 objectAtIndex:5];
         model.abNetUrl = [[model.netUrl componentsSeparatedByString:@"/"] lastObject];
         [models addObject:model];
     }
@@ -77,10 +79,12 @@
 + (NSString *)parmType:(NSString *)type {
     NSString *tem = [type stringByReplacingOccurrencesOfString:@"\t" withString:@""];
     NSMutableString *muStr = [NSMutableString string];
-    if ([tem isEqualToString:@"NSString"]) {
-        [muStr appendString:@"(NSString *)"];
+    if ([SHTransform stringIsNeedStar:tem]) {
+        [muStr appendFormat:@"(%@ *)",tem];
     }else{
-        [muStr appendFormat:@"(%@)",type];
+        if (tem.length>0) {
+            [muStr appendFormat:@"(%@)",tem];
+        }
     }
     return muStr;
 }
@@ -124,6 +128,19 @@
     return headerString;
 }
 
+/**
+ 添加标注的头
+
+ @return return value description
+ */
++ (NSString *)addMarkHeaderModel:(SHParmsModel *)model{
+    NSMutableString *headerString = [NSMutableString string];
+    [headerString appendString:@"/**\n"];
+    [headerString appendString:model.requestHeaderNoteName];
+    [headerString appendString:@"\n"];
+    return headerString;
+}
+
 + (NSString *)addMarkFooter {
     NSMutableString *footerString = [NSMutableString string];
     [footerString appendString:@"\n*/\n"];
@@ -141,6 +158,18 @@
     [parmsString appendString:@"/*"];
     [parmsString appendFormat:@"<#备注名称#"];
     [parmsString appendString:@">*/\n"];
+    return parmsString;
+}
+/**
+ 给URL添加备注信息
+
+ @return return value description
+ */
++ (NSString *)addUrlMarkFull:(NSString *)noteNameMarkString {
+    NSMutableString *parmsString = [NSMutableString string];
+    [parmsString appendString:@"/*"];
+    [parmsString appendString:noteNameMarkString];
+    [parmsString appendString:@"*/\n"];
     return parmsString;
 }
 
@@ -169,6 +198,34 @@
 }
 
 /**
+ 拼接 [NSString stringWithFormat:@"%@%@",kBase'ClassNameUrl',@"report/report"] 的格式
+kBase%@Url
+ @param defString 拼接样式出产字符串
+ @return 返回相对应的字符串
+ */
++ (NSString *)addDef2ppendString:(NSString *)defString classN:(NSString *)classN{
+    NSString *str1 = [defString stringByReplacingOccurrencesOfString:@"\t" withString:@""];
+    NSString *str = [str1 stringByReplacingOccurrencesOfString:@"\n" withString:@""];
+    NSString *str2 = [NSString stringWithFormat:@"kBase%@Url",classN];
+    NSMutableString *muString = [NSMutableString string];
+    [muString appendString:@"[NSString stringWithFormat:@"];
+    [muString appendString:@"\""];
+    [muString appendString:@"%@%@"];
+    [muString appendString:@"\","];
+
+    [muString appendString:str2];
+    [muString appendString:@","];
+
+    [muString appendString:@"@"];
+    [muString appendString:@"\""];
+    [muString appendString:str];
+    [muString appendString:@"\""];
+    [muString appendString:@"]"];
+
+    return muString;
+}
+
+/**
  添加备注信息
 
  @param marksModels marksModels description
@@ -176,13 +233,13 @@
  */
 + (NSString *)addMarkModels:(NSArray <SHParmsModel *>*)marksModels {
     NSMutableString *parmsString = [NSMutableString string];
-    [parmsString appendString:[SHTransform addMarkHeader]];
+    [parmsString appendString:[SHTransform addMarkHeaderModel:[marksModels firstObject]]];
     for (int i = 0; i < marksModels.count; i++) {
         SHParmsModel *parmsModel = marksModels[i];
         [parmsString appendString:[SHTransform addMarkBodyName:parmsModel.netParameterName markName:parmsModel.netNoteName]];
     }
     [parmsString appendString:[SHTransform addMarkFooter]];
-    return parmsString;
+    return [parmsString sh_lowercaseString];
 }
 /**
   添加备注信息
@@ -244,4 +301,33 @@
     [muString appendFormat:@"/* %@URL_h */\n",className];
     return [NSString stringWithString:muString];
 }
+
++ (BOOL)stringIsNeedStar:(NSString *)string {
+    NSArray *array = @[@"NSString",@"NSArray"];
+    for (int i = 0; i < array.count; i++) {
+        if ([string isEqualToString:[array objectAtIndex:i]]) {
+            return YES;
+            break;
+        }
+    }
+    return NO;
+}
+
++ (NSString *)netTypeNameFrom:(NSString *)type {
+
+    if ([[type lowercaseString] isEqualToString:@"int"]) {
+        return @"NSInteger";
+    }
+    if ([[type lowercaseString] isEqualToString:@"integer"]) {
+        return @"NSInteger";
+    }
+    if ([[type lowercaseString] isEqualToString:@"string"]) {
+        return @"NSString";
+    }
+    if ([[type lowercaseString] hasPrefix:@"list"]) {
+        return @"NSArray";
+    }
+    return type;
+}
+
 @end

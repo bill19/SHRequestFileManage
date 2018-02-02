@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 @class SHParmsModel;
+
 @interface SHTransform : NSObject
 
 /**
@@ -60,7 +61,12 @@
  @return return value description
  */
 + (NSString *)addUrlMark:(NSString *)urlMarkString ;
+/**
+ 给URL添加备注信息
 
+ @return return value description
+ */
++ (NSString *)addUrlMarkFull:(NSString *)noteNameMarkString ;
 /**
  拼接 [NSString stringWithFormat:@"%@",@"report/report"] 的格式
 
@@ -68,6 +74,13 @@
  @return 返回相对应的字符串
  */
 + (NSString *)addDefppendString:(NSString *)defString ;
+/**
+ 拼接 [NSString stringWithFormat:@"%@",@"report/report"] 的格式
+
+ @param defString 拼接样式出产字符串
+ @return 返回相对应的字符串
+ */
++ (NSString *)addDef2ppendString:(NSString *)defString classN:(NSString *)classN;
 
 /**
  添加备注信息
@@ -100,4 +113,7 @@
  @return <#return value description#>
  */
 + (NSString *)urlFooterEndclassName:(NSString *)className ;
+
+
++ (BOOL)stringIsNeedStar:(NSString *)string ;
 @end

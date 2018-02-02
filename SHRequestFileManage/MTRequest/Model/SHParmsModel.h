@@ -35,4 +35,9 @@
  */
 @property (nonatomic, copy) NSString *netRequest;
 
+/**
+ 请求的 注释
+ */
+@property (nonatomic, copy) NSString *requestHeaderNoteName;
+
 @end

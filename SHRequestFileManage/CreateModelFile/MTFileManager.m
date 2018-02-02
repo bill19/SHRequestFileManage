@@ -11,18 +11,20 @@
 #import "SHTransform.h"
 #import "SHParmsModel.h"
 #import "SHFileHeader.h"
+#import <Cocoa/Cocoa.h>
+#import "NSString+change.h"
 @interface MTFileManager()
 
-//存放多级model 的数组 弃用
 @property (nonatomic, strong) NSMutableArray *mutiModelArray;
-//存放多级model 的数组
+
 @property (nonatomic, strong) NSMutableArray *allModelArray;
-//拼接@class的字符串
+
 @property (nonatomic, strong) NSMutableString *atString;
 
 @property (nonatomic, strong) NSArray *urls;
 
 @end
+
 @implementation MTFileManager
 
 - (BOOL)createModelWithUrlurlString:(NSString *)urlstring {
@@ -37,51 +39,54 @@
  */
 - (BOOL)createModelWithUrlurlArray:(NSArray <SHParmsModel *>*)urlArray
 {
-    self.headerString = [NSMutableString string];
-    [self.headerString appendString:[self creatFileHeaderClassName:self.className projectName:self.projectName developerName:self.developerName abString:self.abString isHeader:YES]];
-    [self.headerString appendString:[SHTransform urlHeaderBeginclassName:self.className]];
+    NSMutableString *headerString = [NSMutableString string];
+    [headerString appendString:[self creatFileHeaderClassName:self.className projectName:self.projectName developerName:self.developerName abString:self.abString isHeader:YES]];
+    [headerString appendFormat:@"#define kBase%@Url @\"\" \n",self.className];
+    [headerString appendString:[SHTransform urlHeaderBeginclassName:self.className]];
     NSMutableArray *urlTempArr = [NSMutableArray array];
+    NSMutableArray *marksTemp = [NSMutableArray array];
     for (NSUInteger index = 0; index < urlArray.count; index++) {
         SHParmsModel *parmsModel = [urlArray objectAtIndex:index];
         [urlTempArr addObject:parmsModel.netUrl];
+        [marksTemp addObject:parmsModel.requestHeaderNoteName];
     }
     NSArray *urls = [SHTransform removeRepeat:urlTempArr];
+    NSArray *marksurls = [SHTransform removeRepeat:marksTemp];
     self.urls = urls;
     for (int i = 0; i < urls.count; i++) {
         //去除空格
         NSString *urlStr1 = [[urls objectAtIndex:i] stringByReplacingOccurrencesOfString:@" " withString:@""];
         NSString *urlStr = [urlStr1 stringByReplacingOccurrencesOfString:@"\t" withString:@""];
         //创建 #define URL_NH_REPORT  的格式
-        [self.headerString appendString:[SHTransform addUrlMark:@""]];
+        [headerString appendString:[SHTransform addUrlMarkFull:marksurls[i]]];
         NSString *temStr = [[urls[i] componentsSeparatedByString:@"/"] lastObject];
-        [self.headerString appendFormat:@"#define URL_%@_%@ ",[self.abString uppercaseStringWithLocale:[NSLocale currentLocale]],[temStr uppercaseStringWithLocale:[NSLocale currentLocale]]];
-        [self.headerString appendString:[SHTransform addDefppendString:urlStr]];
-        [self.headerString appendString:@"\n\n\n"];
+        [headerString appendFormat:@"#define URL_%@_%@ ",[self.abString uppercaseStringWithLocale:[NSLocale currentLocale]],[temStr uppercaseStringWithLocale:[NSLocale currentLocale]]];
+        [headerString appendString:[SHTransform addDef2ppendString:urlStr classN:self.className]];
+        [headerString appendString:@"\n\n\n"];
     }
 
-    [self.headerString appendString:[SHTransform urlFooterEndclassName:self.className]];
-    return [self generateFileAllowForHeader:@"URL" needSource:NO];
+    [headerString appendString:[SHTransform urlFooterEndclassName:self.className]];
+    return [self generateFileAllowForHeader:@"URL" needSource:NO headerStr:headerString sourceStr:[NSMutableString string]];
 }
 
 - (BOOL)creatRequestFileWithArray:(NSArray <SHParmsModel *>*)modelArray {
 
-    self.headerString = [NSMutableString string];
-    [self.headerString appendString:[self creatFileHeaderClassName:self.className projectName:self.projectName developerName:self.developerName abString:self.abString isHeader:YES]];
+    NSMutableString *headerString  = [NSMutableString string];
+    [headerString appendString:[self creatFileHeaderClassName:self.className projectName:self.projectName developerName:self.developerName abString:self.abString isHeader:YES]];
     //拼接上面的block回调
-    [self.headerString appendString:k_Block_Success];
-    [self.headerString appendString:k_Block_Failure];
-    [self.headerString appendString:k_Block_Error];
-
-    NSMutableString *sourceString = [NSMutableString string];
-    [sourceString appendString:k_block_judgeHeader];
-
+    [headerString appendString:k_Block_Success];
+    [headerString appendString:k_Block_Failure];
+    [headerString appendString:k_Block_Error];
+    NSMutableString *headerSocString = [NSMutableString string];
+    [headerSocString appendString:k_block_judgeHeader];
     NSDictionary *dict = [SHTransform mergeParms:modelArray urls:self.urls];
-    [sourceString appendString:[self sourceStringFromUrls:self.urls dict:dict isNeedRequestType:NO]];
+    [headerSocString appendString:[self sourceStringFromUrls:self.urls dict:dict isNeedRequestType:NO]];
     NSString *str1 = [NSString stringWithFormat:@"%@Request",_className];
-    [self.headerString appendFormat:k_CLASS,str1,sourceString];
+    [headerString appendFormat:k_CLASS,str1,headerSocString];
 
-    [self creatRequestFileSourceWithArray:modelArray];
-    return  [self generateFileAllowForHeader:@"Request" needSource:YES];
+
+    NSMutableString *muSourceStr = [NSMutableString stringWithFormat:@"%@",[self creatRequestFileSourceWithArray:modelArray]];
+    return  [self generateFileAllowForHeader:@"Request" needSource:YES headerStr:headerString sourceStr:muSourceStr];
 }
 
 /**
@@ -102,27 +107,44 @@
         NSArray *models = dict[url];
         for (int i = 0; i < models.count; i++) {
             SHParmsModel *parmModel = [models objectAtIndex:i];
-            [parmsString appendString:parmModel.netParameterName];
-            [parmsString appendString:@":"];
+            [parmsString appendString:[parmModel.netParameterName sh_lowercaseString]];
+            if (parmModel.netParameterName.length>0) {
+                [parmsString appendString:@":"];
+            }
             [parmsString appendString:[SHTransform parmType:parmModel.netTypeName]];
-            [parmsString appendString:parmModel.netParameterName];
-            [parmsString appendString:@" "];
+            if ([parmModel.netParameterName isEqualToString:@"id"]) {
+                [parmsString appendString:@"ID"];
+            }else{
+                [parmsString appendString:parmModel.netParameterName];
+            }
+
+            if (parmModel.netParameterName.length>0) {
+                [parmsString appendString:@" "];
+            }
             requestStr = parmModel.netRequest;
             NSMutableString *tempNetType =[NSMutableString string];
-            if ([parmModel.netTypeName isEqualToString:@"NSString"]) {
+            if ([SHTransform stringIsNeedStar:parmModel.netTypeName] ) {
                 [tempNetType appendString:parmModel.netParameterName];
             }else{
                 [tempNetType appendString:[SHTransform addParentheses:parmModel.netParameterName]];
             }
-            [parmInPutString appendFormat:@"[self addParmWith:params mtobject:%@ mtkey:@\"%@\"];\n",tempNetType,parmModel.netParameterName];
+            if (parmModel.netParameterName.length>0) {
+                if ([tempNetType isEqualToString:@"id"]) {
+                    [parmInPutString appendFormat:@"    [self addParmWith:params mtobject:%@ mtkey:@\"%@\"];\n",@"ID",parmModel.netParameterName];
+                }else{
+                    [parmInPutString appendFormat:@"    [self addParmWith:params mtobject:%@ mtkey:@\"%@\"];\n",tempNetType,parmModel.netParameterName];
+                }
+            }
         }
         NSString *url_Str = [NSString stringWithFormat:@"URL_%@_%@ ",[self.abString uppercaseStringWithLocale:[NSLocale currentLocale]],[[[url componentsSeparatedByString:@"/"] lastObject] uppercaseStringWithLocale:[NSLocale currentLocale]]];//获取URL 例如 URL_XX_XX字符串
-        [tempSourceString appendString:[SHTransform addMarkModels:models]];
+        [tempSourceString appendString:[SHTransform addMarkModels:models]];//备注信息拼接
         [tempSourceString appendString:k_function_header([_abString uppercaseString],[[url componentsSeparatedByString:@"/"] lastObject],parmsString,k_function_footer,needRequestType?@"\n":@";\n")];
         [sourceStr appendString:tempSourceString];
 
         if (needRequestType == YES) {//内部写入参数信息 拼接接收到的参数字典
-            [parmInPutString insertString:@"NSMutableDictionary *params = [NSMutableDictionary dictionary];\n" atIndex:0];
+
+            [parmInPutString insertString:@"    [self addParametersForDict:params];\n" atIndex:0];
+            [parmInPutString insertString:@"    NSMutableDictionary *params = [NSMutableDictionary dictionary];\n" atIndex:0];
             [parmInPutString appendString:k_function_requestBody(requestStr,url_Str)];
             NSString *barcketsString = [SHTransform addBrackets:parmInPutString];
             [sourceStr appendString:barcketsString];
@@ -131,19 +153,20 @@
     return sourceStr;
 }
 
-- (BOOL)creatRequestFileSourceWithArray:(NSArray <SHParmsModel *>*)modelArray {
+- (NSString *)creatRequestFileSourceWithArray:(NSArray <SHParmsModel *>*)modelArray {
 
-    self.sourceString = [NSMutableString string];
-    [self.sourceString appendString:[self creatFileHeaderClassName:self.className projectName:self.projectName developerName:self.developerName abString:self.abString isHeader:NO]];
+    NSMutableString *sourceStr = [NSMutableString string];
+    [sourceStr appendString:[self creatFileHeaderClassName:self.className projectName:self.projectName developerName:self.developerName abString:self.abString isHeader:NO]];
     NSMutableString *sourceString = [NSMutableString string];
+    [sourceString appendString:k_block_judgeSource];
     /**创建唯一调用方法*/
     NSDictionary *dict = [SHTransform mergeParms:modelArray urls:self.urls];
     [sourceString appendString:[self sourceStringFromUrls:self.urls dict:dict isNeedRequestType:YES]];
     [sourceString appendString:k_function_addParm];
     [sourceString appendString:k_function_addParmWithDict];
     NSString *str1 = [NSString stringWithFormat:@"%@Request",_className];
-    [self.sourceString appendFormat:k_CLASS_M,str1,sourceString];
-    return YES;
+    [sourceStr appendFormat:k_CLASS_M,str1,sourceString];
+    return sourceStr;
 }
 
 /**
@@ -170,7 +193,7 @@
  * @return 成功为YES 失败为NO
  * deprecated 目前弃用
  */
-- (BOOL)generateFileAllowForHeader:(NSString *)name needSource:(BOOL)needSource{
+- (BOOL)generateFileAllowForHeader:(NSString *)name needSource:(BOOL)needSource headerStr:(NSMutableString *)headerStr sourceStr:(NSMutableString *)sourceStr{
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES);
     NSString *dirPath = [paths[0] stringByAppendingPathComponent:name];
 
@@ -185,11 +208,12 @@
 
     BOOL headFileFlag = NO;
     BOOL sourceFileFlag = NO;
-    NSString *headFilePath = [dirPath stringByAppendingPathComponent:[NSString stringWithFormat:@"%@%@.h",_className,name]];
-    headFileFlag = [self.headerString writeToFile:headFilePath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    NSString *rpath = [dirPath stringByAppendingPathComponent:[NSString stringWithFormat:@"%@%@.h",_className,name]];
+    headFileFlag = [headerStr writeToFile:rpath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     if (needSource) {
         NSString *sourceFilePath = [dirPath stringByAppendingPathComponent:[NSString stringWithFormat:@"%@%@.m",_className,name]];
-        sourceFileFlag =  [self.sourceString writeToFile:sourceFilePath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        sourceFileFlag =  [sourceStr writeToFile:sourceFilePath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        [fm createDirectoryAtPath:sourceFilePath withIntermediateDirectories:YES attributes:nil error:nil];
     }
 
     if (needSource) {
@@ -199,20 +223,12 @@
     }
 }
 
-- (NSMutableString *)headerString {
 
-    if (!_headerString) {
-        _headerString = [[NSMutableString alloc] init];
-    }
-    return _headerString;
-}
-
-- (NSMutableString *)sourceString {
-
-    if (!_sourceString) {
-        _sourceString = [[NSMutableString alloc] init];
-    }
-    return _sourceString;
-
++ (void)openFloder
+{
+    //    NSString *dateStr = [NSDate stringWithFormat:@"yyyy-MM-dd"];
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES);
+    //    NSString *dirPath = [paths[0] stringByAppendingPathComponent:dateStr];
+    [[NSWorkspace sharedWorkspace]selectFile:nil inFileViewerRootedAtPath:paths[0]];
 }
 @end
